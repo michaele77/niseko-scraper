@@ -96,6 +96,7 @@ if __name__ == "__main__":
         print(f"Style: {date.get_attribute('style')}")
         
         # if int(date.text) > 25:
+        
         #     date.click()
         datesToDateData[int(date.text)] = date.get_attribute('data-time')
         
