@@ -58,9 +58,14 @@ def GetStudioRoomElement():
     roomResults = driver.find_elements(By.CLASS_NAME, 'result-card')
     studioRoom = None
     for room in roomResults:
+        print(f"Text: {room.text}")
+        print(f"Tag Name: {room.tag_name}")
+        print(f"Class: {room.get_attribute('class')}")
+        print(f"ID: {room.get_attribute('id')}")
+        print(f"Is Visible?: {room.is_displayed()}")
         if 'Studio' in room.text:
             studioRoom = room
-            break
+            # break
     return studioRoom
 
 def ExpandStudioResult(studioElement):
@@ -78,12 +83,39 @@ def ExpandStudioResult(studioElement):
         time.sleep(1)
 
 def OutputPrices(studioElement):
+    print('$$$$$$$$$$$$$$$$$$$$$')
+
+    print(studioElement.text)
+    print('######################')
     
     typeToPrice = {}
-    while len(typeToPrice) < 5:
+    titles = driver.find_elements(By.CLASS_NAME, 'result-choice-title')
+    prices = driver.find_elements(By.CLASS_NAME, 'result-choice-price-label')
+    print('length of title: {0}'.format(len(titles)))
+    print('length of prices: {0}'.format(len(prices)))
+    # for i in range(len(titles)):
+        # print('title: {0}'.format(titles[i].text))
+        # print('prices: {0}'.format(prices[i].text))
+    sawNewRoom = True
+
+    while sawNewRoom:
+        print('PRINTING ~~~~~~~~~~~~~~~~ $$$$$')
         roomType = driver.find_elements(By.CLASS_NAME, 'result-choice-body')
+        sawNewRoom = False
         for room in roomType:
-            
+            title = room.find_element(By.CLASS_NAME, 'result-choice-title')
+            price = room.find_element(By.CLASS_NAME, 'result-choice-price-label')
+            print('title: {0}'.format(title.text))
+            print('prices: {0}'.format(price.text))
+
+            if title not in typeToPrice:
+                typeToPrice[title] = price
+                sawNewRoom = True
+                print('<<>> ADDING {0}'.format(title))
+        print('PRINTING ~~~~~~~~~~~~~~~~ $$$$$')
+
+        hasAppendedToOutput = False
+        for room in roomType:
             print(f"Text: {room.text}")
             print(f"Tag Name: {room.tag_name}")
             print(f"Class: {room.get_attribute('class')}")
@@ -92,6 +124,7 @@ def OutputPrices(studioElement):
             print(f"TITLE Text: {title.text}")
             if title.text in typeToPrice:
                 continue
+            
 
             price = room.find_element(By.CSS_SELECTOR, '.result-choice-price-label')
             print(f"TITLE price: {price.text}")
@@ -102,14 +135,27 @@ def OutputPrices(studioElement):
                 print('SWIPER NO SWIPING!!!')
                 # Find the swipable element
                 # swipable_element = driver.find_element(By.CSS_SELECTOR, '.result-choice-list .swiper-slide')
-                swipable_element = driver.find_element(By.CSS_SELECTOR, '.swiper-slide.result-choice.swiper-slide-next')
+                swipable_element = driver.find_elements(By.CSS_SELECTOR, '.swiper-slide.result-choice')
+                isNextOne = False
+                elementToSwipe = None
+                for swipe in swipable_element:
+                    if isNextOne:
+                        elementToSwipe = swipe
+                        break
+                    print(f"SWIPE Class: {swipe.get_attribute('class')}")
+                    if 'swiper-slide-next' in swipe.get_attribute('class'):
+                        isNextOne = True
+
                 # Create a TouchActions object
                 # Create an ActionChains object
                 actions = ActionChains(driver)
 
                 # Perform a "drag and hold" action to simulate a scroll
-                actions.click_and_hold(swipable_element).move_by_offset(-500, 0).perform()  # Move left
+                actions.click_and_hold(elementToSwipe).move_by_offset(-400, 0).perform()  # Move left
                 time.sleep(1)  # Add a brief delay for the action to take effect
+                # Perform release action to release the mouse button
+                actions.release().perform()
+                time.sleep(1)
 
                 # touch_actions = TouchActions(driver)
                 # # Perform the swipe action on the swipable element
@@ -119,8 +165,11 @@ def OutputPrices(studioElement):
                 time.sleep(1)
                 print('RESTARTING LOOP')
                 break
-            else:
-                typeToPrice[title.text] = price.text
+            # else:
+            #     typeToPrice[title.text] = price.text
+            
+        # if not hasAppendedToOutput:
+        #     sawNewRoom = False
     return typeToPrice
 
 
@@ -180,7 +229,7 @@ if __name__ == "__main__":
         time.sleep(0.5)
         print('About to click with unix time of {0}'.format(orderedDates[6+nightsToStay][1]))
         ClickDateByUnixTime(orderedDates[6+nightsToStay][1])
-        time.sleep(8)
+        time.sleep(10)
         
         room = GetStudioRoomElement()
         ExpandStudioResult(room)
