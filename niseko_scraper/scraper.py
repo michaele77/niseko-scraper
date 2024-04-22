@@ -55,7 +55,16 @@ def ClickDateByUnixTime(unixTime):
 
 def GetStudioRoomElement():
     # Only interested in studio (and maybe one-bedroom)
-    roomResults = driver.find_elements(By.CLASS_NAME, 'result-card')
+    # try:
+    while True:
+        roomResults = driver.find_elements(By.CLASS_NAME, 'result-card')
+        if roomResults[0].is_displayed():
+            break
+        print('Re-fetching...')
+        time.sleep(2)
+    # except:
+    #     print('ERRRORRR <<2>>')
+    #     time.sleep(100)
     studioRoom = None
     for room in roomResults:
         print(f"Text: {room.text}")
@@ -68,38 +77,83 @@ def GetStudioRoomElement():
             # break
     return studioRoom
 
+# Returns true if expansion worked, false if no studios are available at all
 def ExpandStudioResult(studioElement):
-    selectButton = studioElement.find_elements(By.CLASS_NAME, 'result-card-select-room-btn')
-    if len(selectButton) > 1:
-        raise AssertionError("There was more than one select button for the studio page")
-    # There should only be one button here
-    for btn in selectButton:
-        print(f"Text: {btn.text}")
-        print(f"Tag Name: {btn.tag_name}")
-        print(f"Class: {btn.get_attribute('class')}")
-        print(f"ID: {btn.get_attribute('id')}")
-        print(f"Is Visible?: {btn.is_displayed()}")
-        btn.click()
-        time.sleep(1)
+    # try:
+    selectButton = studioElement.find_element(By.CLASS_NAME, 'result-card-select-room-btn')
+    # # except:
+    # #     print('ERRRRORRRR on <<1>>, waiting....')
+    # #     time.sleep(100)
+    # if len(selectButton) > 1:
+    #     raise AssertionError("There was more than one select button for the studio page")
+    # # There should only be one button here
+    # for btn in selectButton:
+    print(f"Text: {selectButton.text}")
+    print(f"Tag Name: {selectButton.tag_name}")
+    print(f"Class: {selectButton.get_attribute('class')}")
+    print(f"ID: {selectButton.get_attribute('id')}")
+    print(f"Is Visible?: {selectButton.is_displayed()}")
+    print(f"Is Enabled?: {selectButton.is_enabled()}")
+    if not selectButton.is_displayed():
+        return False
+    selectButton.click()
+    time.sleep(1)
+    return True
 
-def OutputPrices(studioElement):
-    print('$$$$$$$$$$$$$$$$$$$$$')
+def IsStudioAvailable(studioElement):
+    unavailableElements = studioElement.find_elements(By.CLASS_NAME, 'result-card-unavailable')
+    print('UNAVAILABLE ELEMENTS: {0}'.format(unavailableElements))
+    return len(unavailableElements) == 0
 
-    print(studioElement.text)
-    print('######################')
+def SwipeToLeft():
+    swipable_element = driver.find_elements(By.CSS_SELECTOR, '.swiper-slide.result-choice')
+    isNextOne = False
+    elementToSwipe = None
+    for swipe in swipable_element:
+        if isNextOne:
+            elementToSwipe = swipe
+            break
+        print(f"SWIPE Class: {swipe.get_attribute('class')}")
+        if 'swiper-slide-next' in swipe.get_attribute('class'):
+            isNextOne = True
+
+    # Create a TouchActions object
+    actions = ActionChains(driver)
+
+    # Perform a "drag and hold" action to simulate a scroll
+    actions.click_and_hold(elementToSwipe).move_by_offset(-400, 0).perform()  # Move left
+    time.sleep(1)  # Add a brief delay for the action to take effect
+    # Perform release action to release the mouse button
+    actions.release().perform()
+    time.sleep(1)
+
+def YenStringToInt(yenString, nightsToStay):
+    # Remove non-numeric characters from the string
+    numericString = ''.join(char for char in yenString if char.isdigit())
+    print('Numeric string: {0}'.format(numericString))
+    if not numericString:
+        # -1 symbolizes that the unit is not available
+        return -1
+    return int(numericString) / nightsToStay
+
+def OutputPrices(studioElement, nightsToStay):
+    # print('$$$$$$$$$$$$$$$$$$$$$')
+
+    # print(studioElement.text)
+    # # print('######################')
     
     typeToPrice = {}
     titles = driver.find_elements(By.CLASS_NAME, 'result-choice-title')
     prices = driver.find_elements(By.CLASS_NAME, 'result-choice-price-label')
-    print('length of title: {0}'.format(len(titles)))
-    print('length of prices: {0}'.format(len(prices)))
+    # print('length of title: {0}'.format(len(titles)))
+    # print('length of prices: {0}'.format(len(prices)))
     # for i in range(len(titles)):
         # print('title: {0}'.format(titles[i].text))
         # print('prices: {0}'.format(prices[i].text))
     sawNewRoom = True
 
     while sawNewRoom:
-        print('PRINTING ~~~~~~~~~~~~~~~~ $$$$$')
+        # print('PRINTING ~~~~~~~~~~~~~~~~ $$$$$')
         roomType = driver.find_elements(By.CLASS_NAME, 'result-choice-body')
         sawNewRoom = False
         for room in roomType:
@@ -107,70 +161,43 @@ def OutputPrices(studioElement):
             price = room.find_element(By.CLASS_NAME, 'result-choice-price-label')
             print('title: {0}'.format(title.text))
             print('prices: {0}'.format(price.text))
-
-            if title not in typeToPrice:
-                typeToPrice[title] = price
-                sawNewRoom = True
-                print('<<>> ADDING {0}'.format(title))
-        print('PRINTING ~~~~~~~~~~~~~~~~ $$$$$')
-
-        hasAppendedToOutput = False
-        for room in roomType:
-            print(f"Text: {room.text}")
-            print(f"Tag Name: {room.tag_name}")
-            print(f"Class: {room.get_attribute('class')}")
-            title = room.find_element(By.CSS_SELECTOR, '.result-choice-title')
-            # title = room.find_element(By.CSS_SELECTOR, ".sub-class-name")
-            print(f"TITLE Text: {title.text}")
-            if title.text in typeToPrice:
-                continue
-            
-
-            price = room.find_element(By.CSS_SELECTOR, '.result-choice-price-label')
-            print(f"TITLE price: {price.text}")
-            print(title)
-            print(price)
-            print('What is length of title?: {0}'.format(title.text))
             if len(title.text) < 2:
-                print('SWIPER NO SWIPING!!!')
-                # Find the swipable element
-                # swipable_element = driver.find_element(By.CSS_SELECTOR, '.result-choice-list .swiper-slide')
-                swipable_element = driver.find_elements(By.CSS_SELECTOR, '.swiper-slide.result-choice')
-                isNextOne = False
-                elementToSwipe = None
-                for swipe in swipable_element:
-                    if isNextOne:
-                        elementToSwipe = swipe
-                        break
-                    print(f"SWIPE Class: {swipe.get_attribute('class')}")
-                    if 'swiper-slide-next' in swipe.get_attribute('class'):
-                        isNextOne = True
+                continue
+            if title.text not in typeToPrice:
+                
+                typeToPrice[title.text] = YenStringToInt(price.text, nightsToStay)
+                sawNewRoom = True
+                print('<<>> ADDING {0}'.format(title.text))
+        # print('PRINTING ~~~~~~~~~~~~~~~~ $$$$$')
 
-                # Create a TouchActions object
-                # Create an ActionChains object
-                actions = ActionChains(driver)
 
-                # Perform a "drag and hold" action to simulate a scroll
-                actions.click_and_hold(elementToSwipe).move_by_offset(-400, 0).perform()  # Move left
-                time.sleep(1)  # Add a brief delay for the action to take effect
-                # Perform release action to release the mouse button
-                actions.release().perform()
-                time.sleep(1)
-
-                # touch_actions = TouchActions(driver)
-                # # Perform the swipe action on the swipable element
-                # touch_actions.scroll(swipable_element, -100, 0).perform()  # Swipe left
-                # time.sleep(1)  # Add a brief delay for the action to take effect
-                # # typeToPrice[]
-                time.sleep(1)
-                print('RESTARTING LOOP')
-                break
-            # else:
-            #     typeToPrice[title.text] = price.text
-            
-        # if not hasAppendedToOutput:
-        #     sawNewRoom = False
+        SwipeToLeft()
     return typeToPrice
+
+def GetMonthString():
+    thisMonthElement = driver.find_element(By.CSS_SELECTOR, '.month-item.no-previous-month')
+    monthString = thisMonthElement.find_element(By.CLASS_NAME, 'month-item-name').text
+    print('<<MONTH>> {0}'.format(monthString))
+    return monthString
+
+def GetYearString():
+    thisMonthElement = driver.find_element(By.CSS_SELECTOR, '.month-item.no-previous-month')
+    yearString = thisMonthElement.find_element(By.CLASS_NAME, 'month-item-year').text
+    print('<<YEAR>> {0}'.format(yearString))
+    return yearString
+
+def ClickToNextMonth():
+    getAllArrowButtons = driver.find_elements(By.CLASS_NAME, 'button-next-month')
+    for btn in getAllArrowButtons:
+        print(f"Text: {btn.text}")
+        print(f"Tag Name: {btn.tag_name}")
+        print(f"Class: {btn.get_attribute('class')}")
+        print(f"ID: {btn.get_attribute('id')}")
+        print(f"Is Visible?: {btn.is_displayed()}")
+        print(f"Is Enabled?: {btn.is_enabled()}")
+        if btn.is_displayed():
+            btn.click()
+            return
 
 
 if __name__ == "__main__":
@@ -184,60 +211,68 @@ if __name__ == "__main__":
 
 
     OpenBookBar()
+
+    while True:
+        ClickToNextMonth()
+        time.sleep(1)
     orderedDates = GetDatesForMonth()
     
-    # while True:
-    #     time.sleep(1)
-    # Try to click one and two
-    # button_1 = driver.find_element(By.CSS_SELECTOR, "div[data-time='{0}']".format(orderedDates[0][1])) #driver.find_elements(By.CSS_SELECTOR, "tagname[data-time='{0}']".format(orderedDates[0][0]))
-    # # for b in button_1:
-    # print(' 1111    THIS BUTTONNNNNN !!!!!!!!!!!!')
-    # print(f"Text: {button_1.text}")
-    # print(f"Tag Name: {button_1.tag_name}")
-    # print(f"Class: {button_1.get_attribute('class')}")
-    # print(f"Date Time!: {button_1.get_attribute('data-time')}")
-    #     # print(f"ID: {date.get_attribute('id')}")
-    #     # print(f"Is Visible?: {date.is_displayed()}")
-    #     # print(f"Is Enabled?: {date.is_enabled()}")
-    #     # print(f"Size: {date.size}")
-    #     # print(f"Location: {date.location}")
-    #     # print(f"Style: {date.get_attribute('style')}")
-    # button_1.click()
-    # time.sleep(1)
-    # # button_2 = driver.find_elements(By.CSS_SELECTOR, "tagname[data-time='{0}']".format(orderedDates[1][0]))
-   
-    # button_1.click()
-    # time.sleep(1)
-    # button_2.click()
-    # time.sleep(2)
     datesAreIncreasing = True
     prevDate = -1
     nightsToStay = 2
+    # This is a map of (month string, day int, year string, unix time int) --> {studio type string, price per night int}
+    timeTupleToPriceData = {}
+    monthString = GetMonthString()
+    yearString = GetYearString()
     for i, (date, unixTime) in enumerate(orderedDates):
+        tupleKey = (monthString, date, yearString, unixTime)
         # Loop logic.
-        if not datesAreIncreasing:
-            break
+        print('<<>> prev date: {0}'.format(prevDate))
+        print('<<>> cur date: {0}'.format(date))
+        # print('<<>> dates increasing?: {0}'.format(datesAreIncreasing))
+        # if not datesAreIncreasing:
+        #     break
         if prevDate > date:
-            datesAreIncreasing = False
+            print('BREAKINGGG <<>> ')
+            break
         prevDate = date
 
+        # Before doing anything else, scroll to the top first.
+        driver.execute_script("window.scrollTo(0, 0)")
+        time.sleep(0.2)
         # Click on the date range that we want to do
-        print('About to click with unix time of {0}'.format(orderedDates[6][1]))
+        print('About to click with unix time of {0}'.format(orderedDates[i][1]))
         OpenBookBar()
         time.sleep(0.5)
-        ClickDateByUnixTime(orderedDates[6][1])
+        ClickDateByUnixTime(orderedDates[i][1])
         time.sleep(0.5)
-        print('About to click with unix time of {0}'.format(orderedDates[6+nightsToStay][1]))
-        ClickDateByUnixTime(orderedDates[6+nightsToStay][1])
-        time.sleep(10)
+        print('About to click with unix time of {0}'.format(orderedDates[nightsToStay+i][1]))
+        ClickDateByUnixTime(orderedDates[nightsToStay+i][1])
+        time.sleep(2)
         
         room = GetStudioRoomElement()
-        ExpandStudioResult(room)
+        # if not IsStudioAvailable(room):
+        #     print('ROOM IS NOT AVAILABLE! Thats easy....')
+        #     timeTupleToPriceData[(date, unixTime)] = -1
+        #     continue
+
+        if not ExpandStudioResult(room):
+            print('ROOM IS NOT AVAILABLE! Thats easy....')
+            timeTupleToPriceData[tupleKey] = -1
+            continue
+            #     print('expanding studio element!')
+            #     break
+            # except:
+            #     print('NOT LOADED YET! sleeping for a bit...')
+            #     time.sleep(1)
+        
         # These prices are for the total stay, we need to normalize for per-night.
-        pricesPerRoom = OutputPrices(room)
-        print('EXPANDED!')
-        time.sleep(2)
-        print('WE GOT A PRICE OF: {0}'.format(room.text))
+        pricesPerRoom = OutputPrices(room, nightsToStay)
+        
+        print(pricesPerRoom)
+        timeTupleToPriceData[tupleKey] = pricesPerRoom
+        print('Full map is now: {0}'.format(timeTupleToPriceData))
+        # time.sleep(100)
 
 
 
