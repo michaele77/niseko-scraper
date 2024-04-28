@@ -174,14 +174,12 @@ def OutputPrices(studioElement, nightsToStay):
     return typeToPrice
 
 def GetMonthString():
-    thisMonthElement = driver.find_element(By.CSS_SELECTOR, '.month-item.no-previous-month')
-    monthString = thisMonthElement.find_element(By.CLASS_NAME, 'month-item-name').text
+    monthString = driver.find_element(By.CLASS_NAME, 'month-item-name').text
     print('<<MONTH>> {0}'.format(monthString))
     return monthString
 
 def GetYearString():
-    thisMonthElement = driver.find_element(By.CSS_SELECTOR, '.month-item.no-previous-month')
-    yearString = thisMonthElement.find_element(By.CLASS_NAME, 'month-item-year').text
+    yearString = driver.find_element(By.CLASS_NAME, 'month-item-year').text
     print('<<YEAR>> {0}'.format(yearString))
     return yearString
 
@@ -199,6 +197,11 @@ def SaveCheckpointIfNeeded(savePeriodicity, filePath, dataToSave):
         # Serialize and write the map to the file
         pickle.dump(dataToSave, file)
 
+def ScrollToTopAndOpenCalendar():
+    driver.execute_script("window.scrollTo(0, 0)")
+    time.sleep(0.5)
+    OpenBookBar()
+    time.sleep(0.5)
 
 if __name__ == "__main__":
     print('Starting program...')
@@ -224,28 +227,29 @@ if __name__ == "__main__":
     # HOWEVER, if both dates are on the same month, that month will be "reset" to be the main first month.
     # So then, all we need to do is check that date has not already been scraped and just reset once all dates are collected.
     
-    for daysCollected in range(10):
+    for daysCollected in range(15):
+        ScrollToTopAndOpenCalendar()
         orderedDates = GetDatesForMonth()
         
         for i, (date, unixTime) in enumerate(orderedDates):
+            # Break before doing an out-of-bound exeption
+            if (nightsToStay + i >= len(orderedDates)):
+                break
+            # Before doing anything else, scroll to the top first.
+            ScrollToTopAndOpenCalendar()
             monthString = GetMonthString()
             yearString = GetYearString()
             tupleKey = (monthString, date, yearString, int(unixTime))
             if tupleKey in timeTupleToPriceData:
                 continue
 
-            # Before doing anything else, scroll to the top first.
-            driver.execute_script("window.scrollTo(0, 0)")
-            time.sleep(0.2)
             # Click on the date range that we want to do
             print('About to click with unix time of {0}'.format(orderedDates[i][1]))
-            OpenBookBar()
-            time.sleep(0.5)
             ClickDateByUnixTime(orderedDates[i][1])
             time.sleep(0.5)
             print('About to click with unix time of {0}'.format(orderedDates[nightsToStay+i][1]))
             ClickDateByUnixTime(orderedDates[nightsToStay+i][1])
-            time.sleep(2)
+            time.sleep(10)
             
             room = GetStudioRoomElement()
             if not ExpandStudioResult(room):
@@ -258,9 +262,6 @@ if __name__ == "__main__":
                 timeTupleToPriceData[tupleKey] = pricesPerRoom
             print('Full map is now: {0}'.format(timeTupleToPriceData))
             SaveCheckpointIfNeeded(checkpointEveryNDays, checkpointPath, timeTupleToPriceData)
-
-
-
 
     print('DONE!')
 
